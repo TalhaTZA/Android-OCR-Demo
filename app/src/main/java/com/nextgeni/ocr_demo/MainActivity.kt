@@ -2,28 +2,30 @@ package com.nextgeni.ocr_demo
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.os.Handler
 import android.os.WorkSource
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.util.forEach
 import androidx.core.util.isNotEmpty
-import com.google.android.gms.vision.CameraSource
-import com.google.android.gms.vision.Detector
-import com.google.android.gms.vision.text.TextBlock
-import com.google.android.gms.vision.text.TextRecognizer
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.wonderkiln.camerakit.*
 import java.lang.Exception
 import java.lang.StringBuilder
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var cameraView: SurfaceView
+    private lateinit var cameraView: CameraView
     private lateinit var textView: TextView
-    private lateinit var cameraSource: CameraSource
+    private lateinit var button: Button
     private val RequestCameraPermissionID = 1001
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -32,78 +34,52 @@ class MainActivity : AppCompatActivity() {
 
         cameraView = findViewById(R.id.surface_view)
         textView = findViewById(R.id.text_view)
+        button = findViewById(R.id.btn_capture)
 
-        val textRecognizer = TextRecognizer.Builder(this).build()
-
-        if (!textRecognizer.isOperational) {
-            Toast.makeText(this, "Detector Dependencies are not yet available", Toast.LENGTH_LONG).show()
-        } else {
-            cameraSource = CameraSource.Builder(this, textRecognizer)
-                    .setFacing(CameraSource.CAMERA_FACING_BACK)
-                    .setRequestedPreviewSize(1280, 1024)
-                    .setRequestedFps(2.0F)
-                    .setAutoFocusEnabled(true)
-                    .build()
-
-            cameraView.holder.addCallback(object : SurfaceHolder.Callback {
-                override fun surfaceChanged(holder: SurfaceHolder?, format: Int, width: Int, height: Int) {
-                    try {
-
-                        if (ActivityCompat.checkSelfPermission(this@MainActivity, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-
-                            ActivityCompat.requestPermissions(this@MainActivity, arrayOf(Manifest.permission.CAMERA), RequestCameraPermissionID)
-
-                            return
-                        }
-                        cameraSource.start(cameraView.holder)
-
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
+        button.setOnClickListener {
+            cameraView.apply {
+                button.isEnabled = false
+                if (!isStarted) {
+                    start()
                 }
-
-                override fun surfaceDestroyed(holder: SurfaceHolder?) {
-                    cameraSource.stop()
-                }
-
-                override fun surfaceCreated(holder: SurfaceHolder?) {
-                }
-
-            })
-
-            textRecognizer.setProcessor(object : Detector.Processor<TextBlock> {
-                override fun release() {
-
-                }
-
-                override fun receiveDetections(dectections: Detector.Detections<TextBlock>?) {
-
-                    dectections?.detectedItems?.apply {
-
-                        if (this.size() != 0) {
-                            textView.post {
-                                val stringBuilder = StringBuilder()
-
-                                this.forEach { key, value ->
-                                    stringBuilder.append(value.value)
-                                    stringBuilder.append("\n")
-                                }
-
-                                textView.text = stringBuilder.toString()
-
-                            }
-                        }
-
-                    }
-
-
-                }
-
-            })
+                Toast.makeText(this@MainActivity, "Processing", Toast.LENGTH_LONG).show()
+                captureImage()
+                stop()
+            }
+            Handler().postDelayed({
+                cameraView.start()
+                button.isEnabled = true
+//                textView.text = null
+            }, 2000)
 
         }
 
+        val recognizer = TextRecognition.getClient()
 
+        cameraView.addCameraKitListener(object : CameraKitEventListener {
+            override fun onVideo(p0: CameraKitVideo?) {
+
+            }
+
+            override fun onEvent(p0: CameraKitEvent?) {
+            }
+
+            override fun onImage(image: CameraKitImage?) {
+
+                recognizer.process(InputImage.fromBitmap(Bitmap.createScaledBitmap(image!!.bitmap, cameraView.width, cameraView.height, false), 0))
+                        .addOnSuccessListener { visionText ->
+                            textView.text = visionText.text
+                        }
+                        .addOnFailureListener { e ->
+                            e.printStackTrace()
+                        }
+
+            }
+
+            override fun onError(p0: CameraKitError?) {
+            }
+
+        })
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
@@ -116,11 +92,21 @@ class MainActivity : AppCompatActivity() {
                         return
                     }
 
-                    cameraSource.start(cameraView.holder)
 
                 }
             }
         }
 
     }
+
+    override fun onResume() {
+        super.onResume()
+        cameraView.start()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        cameraView.stop()
+    }
+
 }
