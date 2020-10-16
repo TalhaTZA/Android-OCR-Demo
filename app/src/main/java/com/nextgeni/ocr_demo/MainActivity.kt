@@ -6,20 +6,16 @@ import android.graphics.Bitmap
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Handler
-import android.os.WorkSource
-import android.view.SurfaceHolder
-import android.view.SurfaceView
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
-import androidx.core.util.forEach
-import androidx.core.util.isNotEmpty
+import com.google.mlkit.vision.barcode.Barcode
+import com.google.mlkit.vision.barcode.BarcodeScannerOptions
+import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.wonderkiln.camerakit.*
-import java.lang.Exception
-import java.lang.StringBuilder
 
 class MainActivity : AppCompatActivity() {
 
@@ -54,7 +50,14 @@ class MainActivity : AppCompatActivity() {
 
         }
 
-        val recognizer = TextRecognition.getClient()
+        val options = BarcodeScannerOptions.Builder()
+            .setBarcodeFormats(
+                Barcode.FORMAT_ALL_FORMATS
+            )
+            .build()
+
+
+        val scanner = BarcodeScanning.getClient(options)
 
         cameraView.addCameraKitListener(object : CameraKitEventListener {
             override fun onVideo(p0: CameraKitVideo?) {
@@ -66,17 +69,35 @@ class MainActivity : AppCompatActivity() {
 
             override fun onImage(image: CameraKitImage?) {
 
-                recognizer.process(InputImage.fromBitmap(Bitmap.createScaledBitmap(image!!.bitmap, cameraView.width, cameraView.height, false), 0))
-                        .addOnSuccessListener { visionText ->
-                            textView.text = visionText.text
-                            Toast.makeText(this@MainActivity, visionText.text, Toast.LENGTH_SHORT).show()
+                val imageInput = InputImage.fromBitmap(
+                    Bitmap.createScaledBitmap(
+                        image!!.bitmap,
+                        cameraView.width,
+                        cameraView.height,
+                        false
+                    ), 0
+                )
 
-                        }
-                        .addOnFailureListener { e ->
-                            Toast.makeText(this@MainActivity, e.localizedMessage, Toast.LENGTH_LONG).show()
-                            e.printStackTrace()
+                scanner.process(imageInput)
+                    .addOnSuccessListener {
+//                        for (barcode in it) {
+//                            Toast.makeText(this@MainActivity, barcode.rawValue, Toast.LENGTH_SHORT)
+//                                .show()
+//                        }
 
+                        if (it.isNotEmpty()) {
+                            textView.text = it.first().rawValue
+                        } else {
+                            callTextRecognizer(imageInput)
                         }
+
+                    }.addOnFailureListener { e ->
+                        callTextRecognizer(imageInput)
+                        Toast.makeText(this@MainActivity, e.localizedMessage, Toast.LENGTH_LONG)
+                            .show()
+                        e.printStackTrace()
+                    }
+
 
             }
 
@@ -86,12 +107,38 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+    private fun callTextRecognizer(imageInput: InputImage) {
+        val recognizer = TextRecognition.getClient()
+
+        recognizer.process(imageInput)
+            .addOnSuccessListener { visionText ->
+                textView.text = visionText.text
+                Toast.makeText(this@MainActivity, visionText.text, Toast.LENGTH_SHORT)
+                    .show()
+
+            }
+            .addOnFailureListener { e ->
+                Toast.makeText(this@MainActivity, e.localizedMessage, Toast.LENGTH_LONG)
+                    .show()
+                e.printStackTrace()
+
+            }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
 
         when (requestCode) {
             RequestCameraPermissionID -> {
                 if (grantResults.first() == PackageManager.PERMISSION_GRANTED) {
-                    if (ActivityCompat.checkSelfPermission(this@MainActivity, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                    if (ActivityCompat.checkSelfPermission(
+                            this@MainActivity,
+                            Manifest.permission.CAMERA
+                        ) != PackageManager.PERMISSION_GRANTED
+                    ) {
 
                         return
                     }

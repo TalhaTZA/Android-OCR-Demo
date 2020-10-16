@@ -42,6 +42,8 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.3.0'
 
     implementation 'com.google.android.gms:play-services-mlkit-text-recognition:16.1.1'
+    implementation 'com.google.android.gms:play-services-mlkit-barcode-scanning:16.1.2'
+
 
     implementation 'com.wonderkiln:camerakit:0.13.1'
 }

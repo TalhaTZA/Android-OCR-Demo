@@ -15,7 +15,12 @@
 
         <meta-data
             android:name="com.google.mlkit.vision.DEPENDENCIES"
-            android:value="ocr" />
+            android:value="ocr,barcode" />
+
+<!--        <meta-data-->
+<!--            android:name="com.google.mlkit.vision.DEPENDENCIES"-->
+<!--            android:value="barcode" />-->
+
 
         <activity android:name=".MainActivity">
             <intent-filter>
