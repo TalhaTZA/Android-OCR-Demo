@@ -39,9 +39,9 @@ class MainActivity : AppCompatActivity() {
         button.setOnClickListener {
             cameraView.apply {
                 button.isEnabled = false
-                if (!isStarted) {
-                    start()
-                }
+//                if (!isStarted) {
+                start()
+//                }
                 Toast.makeText(this@MainActivity, "Processing", Toast.LENGTH_LONG).show()
                 captureImage()
                 stop()
@@ -69,9 +69,13 @@ class MainActivity : AppCompatActivity() {
                 recognizer.process(InputImage.fromBitmap(Bitmap.createScaledBitmap(image!!.bitmap, cameraView.width, cameraView.height, false), 0))
                         .addOnSuccessListener { visionText ->
                             textView.text = visionText.text
+                            Toast.makeText(this@MainActivity, visionText.text, Toast.LENGTH_SHORT).show()
+
                         }
                         .addOnFailureListener { e ->
+                            Toast.makeText(this@MainActivity, e.localizedMessage, Toast.LENGTH_LONG).show()
                             e.printStackTrace()
+
                         }
 
             }
